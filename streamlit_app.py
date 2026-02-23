@@ -17,28 +17,22 @@ st.set_page_config(
 '''
 st.subheader("Gear System")
 
-#Defining column callouts
-cs2 = st.columns(2)
-cs3 = st.columns(3)
-
-system = cs2[0].selectbox("System", ["Rack and Pinion", "Pinion and Wheel"])
-gear_type = cs2[1].selectbox("Gear Type", ["Spur", "Helical"])
-
-#Always visible fields
-module = cs2[0].text_input("Normal Module (mm)")
-pressure_angle_n = cs2[1].text_input("Normal Pressure Angle (°)", 20)
+cs1 = st.columns(2)
+system = cs1[0].selectbox("System", ["Rack and Pinion", "Wheel and Pinion"])
+gear_type = cs1[1].selectbox("Gear Type", ["Spur", "Helical"])
+module = cs1[0].text_input("Normal Module (mm)")
+pressure_angle_n = cs1[1].text_input("Normal Pressure Angle (°)", 20)
 
 if system == "Rack and Pinion":
     st.subheader("Configure Rack and Pinion System")
+    st.subheader("Rack")
+    rack_addendum = st.text_input("Rack Addendum Length (mm)")
     if gear_type == "Helical":
         st.subheader("Helical Pinion")
-        
+        cs3 = st.columns(3)
         helix_angle =cs3[0].number_input("Helix angle (deg)", min_value=0.0, max_value=45.0, value=15.0)
         hand = cs3[1].selectbox("Hand", ["Right", "Left"])
         beta_ref = cs3[2].selectbox("Reference", ["Normal", "Transverse"])
-
-
-
-rack_material = st.selectbox("Select Material",["Structural Steel","Cast Steel","Ductile Cast Iron","Gray Cast Iron"])
+        rack_material = st.selectbox("Select Material",["Structural Steel","Cast Steel","Ductile Cast Iron","Gray Cast Iron"])
 ''
 ''
