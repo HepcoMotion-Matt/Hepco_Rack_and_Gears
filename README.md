@@ -1,6 +1,6 @@
-# :earth_americas: GDP dashboard template
+# :gear: Hepco Gear Calculator
 
-A simple Streamlit app showing the GDP of different countries in the world.
+An app built to aid design and manufacture of geared systems.
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://gdp-dashboard-template.streamlit.app/)
 

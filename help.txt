@@ -1,0 +1,22 @@
+Notes:
+
+Input Section:
+
+Both involute function are the same as their respective working involute functions, as Hepco does not use profile shift.
+
+Gear Strength:
+
+The calculated gear strength is expressed in terms of bending stress and surface durability. These calcuations are based on equations published by the Japanese Gear Manufacturer Association (JGMA). 
+
+Specifications used:
+JGMA 401-01	Bending strength formula of spur and helical gears
+JGMA 402-01	Surface durability formula of spur and helical gears
+
+These formulae apply to gears in the following range:
+
+Module (m):	1.5 to 25mm
+Pitch Diameter (d):	25 to 3200mm
+Tangential Speed (v):	<25m/s
+Rotating Speed (n):	<3600rpm
+
+Refer to SDP/SI Metric Handbook Pgs T-151 to T-155 for help on determining the relevant factors. See sheet "Allowable Bending Stress Table" to lookup the allowable bending stress at the root for the chosen material.
