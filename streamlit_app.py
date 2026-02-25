@@ -3,6 +3,7 @@ import pandas as pd
 import math
 import numpy as np
 from pathlib import Path
+from calculations import calculate_spur_pin, calculate_helical_pin, contact_ratio, contact_length
 
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
@@ -109,6 +110,7 @@ def set_helix(value: float):
     st.session_state["helix_angle"] = value
 
 if gear_type == "Helical":
+    num_teeth_s = None
     sb.subheader("Helical Pinion")
     st.session_state.setdefault("helix_angle", 30.0)
     helix_angle = sb.number_input("Helix Angle (°)", min_value=0.0, max_value=45.0, key="helix_angle")
@@ -131,29 +133,11 @@ show_pin_dims = sb.checkbox("Pinion Dimensions", True)
 show_contact_ratio = sb.checkbox("Contact Ratio", True)
 show_contact_length = sb.checkbox("Contact Length", True)
 
-def calculate_spur_pin(num_teeth_s,module_n,pressure_angle_n):
-    pitch_dia_s = num_teeth_s * module_n
-    base_dia_s = pitch_dia_s * np.cos(np.radians(pressure_angle_n))
-    outer_dia_s = pitch_dia_s + 2 * module_n
-    whole_depth_s = 2.25 * module_n
-    root_dia_s = outer_dia_s - (2 * whole_depth_s)
-    return pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s
-
-def calculate_helical_pin(module_n,helix_angle,pressure_angle_n,num_teeth_h):
-    module_r = module_n / np.cos(np.radians(helix_angle))
-    pressure_angle_r = np.degrees(np.atan(np.tan(np.radians(pressure_angle_n))/np.cos(np.radians(helix_angle))))
-    pitch_dia_h = (num_teeth_h * module_r)/np.cos(np.radians(pressure_angle_r))
-    base_dia_h = pitch_dia_h * np.cos(np.radians(pressure_angle_r))
-    outer_dia_h = pitch_dia_h + 2 * module_r
-    whole_depth_h = 2.25 * module_r
-    root_dia_h = outer_dia_h - (2 * whole_depth_h)
-    return module_r, pressure_angle_r, pitch_dia_h, base_dia_h, outer_dia_h, whole_depth_h, root_dia_h
-
 result_box = st.empty()
 
 if sb.button("Calculate"):
     if show_pin_dims == True and gear_type == "Spur":
-        pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s = calculate_spur_pin(int(num_teeth_s),float(module_n),float(pressure_angle_n))
+        pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s = calculate_spur_pin(float(num_teeth_s),float(module_n),float(pressure_angle_n))
         
         with result_box.container():
 
@@ -170,7 +154,7 @@ if sb.button("Calculate"):
                 st.metric("Root Diameter (mm)", f"{root_dia_s:.3f}")
 
     if show_pin_dims == True and gear_type == "Helical":
-        module_r, pressure_angle_r, pitch_dia_h, base_dia_h, outer_dia_h, whole_depth_h, root_dia_h = calculate_helical_pin(int(module_n),float(helix_angle),float(pressure_angle_n),int(num_teeth_h))
+        module_r, pressure_angle_r, pitch_dia_h, base_dia_h, outer_dia_h, whole_depth_h, root_dia_h = calculate_helical_pin(float(module_n),float(helix_angle),float(pressure_angle_n),int(num_teeth_h))
         
         with result_box.container():
             st.header("Results")
@@ -184,18 +168,14 @@ if sb.button("Calculate"):
             r2.metric("Root Diameter (mm)", f"{root_dia_h:.3f}")
             r2.metric("Radial Pressure Angle (°)", f"{pressure_angle_r:.3f}")
     
+    if gear_type == "Helical":
+        epsilon_a, epsilon_b, epsilon_gamma = contact_ratio(module_n,pressure_angle_n,rack_addendum,contact_width,num_teeth_h,helix_angle)
+    else:
+        epsilon_a, epsilon_b, epsilon_gamma = contact_ratio(module_n,pressure_angle_n,rack_addendum,contact_width,num_teeth_s)
+    
+    contact_length, contact_length_2p, contact_length_1p, contact_length_2p_percent, contact_length_1p_percent = contact_length(module_n,pressure_angle_n,epsilon_gamma)
+    
     if show_contact_ratio == True:
-        if gear_type == "Helical":
-            module_r, pressure_angle_r, pitch_dia_h, base_dia_h, outer_dia_h, whole_depth_h, root_dia_h = calculate_helical_pin(int(module_n),float(helix_angle),float(pressure_angle_n),int(num_teeth_h))
-            pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s = calculate_spur_pin(int(num_teeth_h),float(module_n),float(pressure_angle_n))
-            epsilon_a = (np.sqrt((outer_dia_s/2)**2-(base_dia_s/2)**2)+(rack_addendum/np.sin(np.radians(pressure_angle_n)))-(pitch_dia_s/2)*np.sin(np.radians(pressure_angle_n)))/(np.pi*module_n*np.cos(np.radians(pressure_angle_n)))
-            epsilon_b = (contact_width*np.sin(np.radians(helix_angle)))/(np.pi*module_n)
-            epsilon_gamma = epsilon_a + epsilon_b
-        if gear_type == "Spur":
-            pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s = calculate_spur_pin(int(num_teeth_s),float(module_n),float(pressure_angle_n))
-            epsilon_a = (np.sqrt((outer_dia_s/2)**2-(base_dia_s/2)**2)+(rack_addendum/np.sin(np.radians(pressure_angle_n)))-(pitch_dia_s/2)*np.sin(np.radians(pressure_angle_n)))/(np.pi*module_n*np.cos(np.radians(pressure_angle_n)))
-            epsilon_b = 0
-            epsilon_gamma = epsilon_a
         st.subheader("Contact Ratio")
         r1, r2 = st.columns(2)
         r1.metric("Radial Contact Ratio", f"{epsilon_a:.2f}")
@@ -203,21 +183,15 @@ if sb.button("Calculate"):
         st.metric("Total Contact Ratio", f"{epsilon_gamma:.2f}")
     
     if show_contact_length == True:
-        base_pitch = module_n * np.pi * np.cos(np.radians(pressure_angle_n))
-        contact_length = base_pitch * epsilon_gamma
-        contact_length_2p = 2 * base_pitch * (epsilon_gamma - 1)
-        contact_length_1p = base_pitch * (2 - epsilon_gamma)
-        contact_length_2p_percent = 2 * (1 - (1/epsilon_gamma))*100
-        contact_length_1p_percent = ((2/epsilon_gamma)- 1)*100
-    st.subheader("Contact Length")
-    r1, r2 = st.columns(2)
-    with r1:
-        st.metric("Path of Contact Length (mm)", f"{contact_length:.2f}")
-        st.metric("Path of Contact Length (2 Pairs) (mm)", f"{contact_length_2p:.2f}")
-        st.metric("Path of Contact Length (1 Pair) (mm)", f"{contact_length_1p:.2f}")
-    with r2:
-        st.metric("Path of Contact Length (2 Pairs) (%)", f"{contact_length_2p_percent:.2f}")
-        st.metric("Path of Contact Length (1 Pair) (%)", f"{contact_length_1p_percent:.2f}")
+        st.subheader("Contact Length")
+        r1, r2 = st.columns(2)
+        with r1:
+            st.metric("Path of Contact Length (mm)", f"{contact_length:.2f}")
+            st.metric("Path of Contact Length (2 Pairs) (mm)", f"{contact_length_2p:.2f}")
+            st.metric("Path of Contact Length (1 Pair) (mm)", f"{contact_length_1p:.2f}")
+        with r2:
+            st.metric("Path of Contact Length (2 Pairs) (%)", f"{contact_length_2p_percent:.2f}")
+            st.metric("Path of Contact Length (1 Pair) (%)", f"{contact_length_1p_percent:.2f}")
         
 ''
 ''
