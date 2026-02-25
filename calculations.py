@@ -1,9 +1,10 @@
 import streamlit as st
 import numpy as np
 
-def calculate_spur_pin(num_teeth_s,module_n,pressure_angle_n):
-    pitch_dia_s = num_teeth_s * module_n
-    base_dia_s = pitch_dia_s * np.cos(np.radians(pressure_angle_n))
+def calculate_spur_pin(num_teeth_s,module_n,pressure_angle_n,helix_angle):
+    pitch_dia_s = (num_teeth_s * module_n)/np.cos(np.radians(helix_angle))
+    pressure_angle_r = np.degrees(np.atan(np.tan(np.radians(pressure_angle_n))/np.cos(np.radians(helix_angle))))
+    base_dia_s = pitch_dia_s * np.cos(np.radians(pressure_angle_r))
     outer_dia_s = pitch_dia_s + 2 * module_n
     whole_depth_s = 2.25 * module_n
     root_dia_s = outer_dia_s - (2 * whole_depth_s)
@@ -37,12 +38,12 @@ def contact_ratio(module_n,pressure_angle_n,rack_addendum,contact_width,a1,a2=No
         helix_angle = float(a1)
         num_teeth_h = int(a2)
         module_r, pressure_angle_r, pitch_dia_h, base_dia_h, outer_dia_h, whole_depth_h, root_dia_h = calculate_helical_pin(module_n,a2,pressure_angle_n,a1)
-        pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s = calculate_spur_pin(a1,module_n,pressure_angle_n)
+        pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s = calculate_spur_pin(a1,module_n,pressure_angle_n,a2)
         epsilon_a = epsilon_a(outer_dia_s,base_dia_s,pitch_dia_s)
         epsilon_b = epsilon_b(a2)        
     else:
         num_teeth_s = int(a1)
-        pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s = calculate_spur_pin(a1,module_n,pressure_angle_n)
+        pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s = calculate_spur_pin(a1,module_n,pressure_angle_n,0)
         epsilon_a = epsilon_a(outer_dia_s,base_dia_s,pitch_dia_s)
         epsilon_b = 0
     epsilon_gamma = epsilon_a + epsilon_b

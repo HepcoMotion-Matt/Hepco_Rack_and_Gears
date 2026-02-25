@@ -30,54 +30,11 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-.right-sidebar {   
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 320px;
-    height: 100%;
-    padding: 1.5rem;
-    background-color: #f3f7ff;   /* soft blue help background */
-    border-left: 2px solid #c8d4ff;
-    overflow-y: auto;
-    z-index: 1000;
-    font-size: 0.95rem;
-}
-.main-offset {
-    margin-right: 340px;
-}
-.help-title {
-    font-size: 1.4rem;
-    font-weight: 600;
-    color: #2948ff;
-}
-.help-section {
-    margin-top: 1.2rem;
-}
-.colour-info { color: #1e88e5; }   /* Blue */
-.colour-warn { color: #e65100; }   /* Orange */
-.colour-good { color: #2e7d32; }   /* Green */
-.colour-bad  { color: #c62828; }   /* Red */
-</style>
-""", unsafe_allow_html=True)
-
-# Right sidebar content
-st.markdown("""
-<div class="right-sidebar">
-    <h3>Notes</h3>
-    <p>Configure System Section</p>
-</div>
-""", unsafe_allow_html=True)
-
-
 '''
 # Hepco Gear Calculator
 '''
 ''''''
-"This app calculates gear features for the purpose of design and manufacture. Click the help button for assistance."
+"This app calculates gear features for the purpose of design and manufacture."
 '''
 '''
 sb = st.sidebar
@@ -87,7 +44,7 @@ sb.subheader("Gear System")
 system = sb.selectbox("System", ["Rack and Pinion"])#, "Wheel and Pinion"])
 gear_type = sb.selectbox("Gear Type", ["Spur", "Helical"])
 module_n = sb.number_input("Normal Module (mm)")
-pressure_angle_n = sb.number_input("Normal Pressure Angle (°)", min_value=15.0, max_value=25.0, value=20.0)
+pressure_angle_n = sb.number_input("Normal Pressure Angle (°)", min_value=15.0, max_value=25.0, value=20.0,help="Hepco use a 20° pressure angle as standard, but this can be modified to between 15° and 25°")
 lubricant = sb.selectbox("System Lubricant",["SKF LAGD125"])
 pc_speed = sb.number_input("Speed at Pitch Circle (m/s)", min_value=0.0, max_value=1000.0, value=50.0)
 
@@ -98,7 +55,8 @@ if system == "Rack and Pinion":
     sb.subheader("Rack and Pinion System")
     sb.subheader("Rack")
     st.session_state.setdefault("rack_addendum", module_n)
-    rack_addendum = sb.number_input("Rack Addendum Length (mm)", key="rack_addendum")
+    rack_addendum = sb.number_input("Rack Addendum Length (mm)", key="rack_addendum",\
+    help="Hepco use non-standard addendum which is 0.1mm deeper than that stated in ISO 53. Choose Industry Std Addendum for ground rack")
     sb.button("Hepco Std Addendum", on_click=set_addendum, args=(module_n + 0.1,), key="btn_hepco_addendum")
     sb.button("Industry Std Addendum", on_click=set_addendum, args=(module_n,), key="btn_ind_addendum")
     contact_width = sb.number_input("Normal Contact Width (mm)")
@@ -128,23 +86,33 @@ if gear_type == "Spur":
     pinion_finish_s = sb.selectbox("Pinion Tooth Finish",["Milled","Ground"])
     pinion_treat_s = sb.selectbox("Pinion Tooth Heat Treatment",["Annealed/Normalised","Induction Hardened","Nitrided","Carburised"])
 
-sb.subheader("Results Output Display")
+sb.header("Gear Strength")
+sb.number_input("Allowable Bending Stress at Root (MPa)",min_value=102.0, max_value=509.9, value=284.4,\
+help="As per Tables 17-5 to 17-8 in SDP/SI Metric Handbook Pages T156-158")
+sb.slider("Tooth Profile Factor",min_value=1.8,max_value=3.8,value=2.05,help="See Fig. 17-1 on Pg T-152 of SDP/SI Metric Handbook")
+sb.slider("Life Factor",min_value=1.0,max_value=1.5,value=1,help="See Table 17-2 on Pg T-154 of SDP/SI Metric Handbook")
+sb.slider("Dynamic Load Factor",min_value=1.0,max_value=1.5,value=1.5,help="See Table 17-3 on Pg T-154 of SDP/SI Metric Handbook")
+
+sb.header("Results Output Display")
 show_pin_dims = sb.checkbox("Pinion Dimensions", True)
 show_contact_ratio = sb.checkbox("Contact Ratio", True)
 show_contact_length = sb.checkbox("Contact Length", True)
+sb.subheader("Gear Strength")
+show_bending_stress = sb.checkbox("Bending Stress", True)
+show_surface_stress = sb.checkbox("Surface Stress", True)
 
 result_box = st.empty()
 
 if sb.button("Calculate"):
     if show_pin_dims == True and gear_type == "Spur":
-        pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s = calculate_spur_pin(float(num_teeth_s),float(module_n),float(pressure_angle_n))
+        pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s = calculate_spur_pin(float(num_teeth_s),float(module_n),float(pressure_angle_n),0)
         
         with result_box.container():
 
             st.header("Results")
             st.subheader("Spur Pinion Dimensions")
 
-            r1, r2 = st.columns(2)
+            r1, r2, r3, r4 = st.columns(4)
             with r1:
                 st.metric("Pitch Diameter (mm)", f"{pitch_dia_s:.3f}")
                 st.metric("Base Diameter (mm)", f"{base_dia_s:.3f}")
@@ -159,7 +127,7 @@ if sb.button("Calculate"):
         with result_box.container():
             st.header("Results")
             st.subheader("Helical Pinion Dimensions")
-            r1, r2 = st.columns(2)
+            r1, r2, r3, r4 = st.columns(4)
             r1.metric("Pitch Diameter (mm)", f"{pitch_dia_h:.3f}")
             r1.metric("Base Diameter (mm)", f"{base_dia_h:.3f}")
             r1.metric("Outer Diameter (mm)", f"{outer_dia_h:.3f}")
@@ -177,14 +145,14 @@ if sb.button("Calculate"):
     
     if show_contact_ratio == True:
         st.subheader("Contact Ratio")
-        r1, r2 = st.columns(2)
+        r1, r2, r3, r4 = st.columns(4)
         r1.metric("Radial Contact Ratio", f"{epsilon_a:.2f}")
         r2.metric("Overlap Contact Ratio", f"{epsilon_b:.2f}")
         st.metric("Total Contact Ratio", f"{epsilon_gamma:.2f}")
     
     if show_contact_length == True:
         st.subheader("Contact Length")
-        r1, r2 = st.columns(2)
+        r1, r2, r3, r4 = st.columns(4)
         with r1:
             st.metric("Path of Contact Length (mm)", f"{contact_length:.2f}")
             st.metric("Path of Contact Length (2 Pairs) (mm)", f"{contact_length_2p:.2f}")
