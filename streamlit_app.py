@@ -39,7 +39,7 @@ st.markdown("""
 '''
 
 with st.expander("Gear Strength Tables (For Reference)",expanded=False):
-    st.image("table1.png", width=True)
+    st.image("Table 17-14A.png", width=True)
 
 sb = st.sidebar
 sb.header("Configure System")
