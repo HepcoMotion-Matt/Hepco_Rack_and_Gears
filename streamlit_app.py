@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import math
 import numpy as np
+import altair as alt
+from altair.datasets import data
 from pathlib import Path
 from calculations import calculate_spur_pin, calculate_helical_pin, contact_ratio, contact_length, bending_stress, surface_stress
 
@@ -1200,7 +1202,32 @@ if sb.button("Calculate"):
             st.metric("Bending Stress Due to Applied Load (MPa) $\\sigma_F$",f"{bending_stress_val:.2f}")
         with r2:
             st.metric("Tangential Load Limit (Surface) (N) $F_{tlims}$",f"{tan_load_limit_surface:.2f}")
-            st.metric("Surface Stress Due to Applied Load $\\sigma_H$",f"{surface_stress_val:.2f}")
+            st.metric("Surface Stress Due to Applied Load (MPa) $\\sigma_H$",f"{surface_stress_val:.2f}")        
+        
+        with r3:
+            # ----- Data for limits -----
+                df_limits = pd.DataFrame({
+                    "type": ["Bending", "Surface"],
+                    "limit": [tan_load_limit_bending, tan_load_limit_surface]
+                })
+
+                # Data for applied tangential load (one value across the chart)
+                df_applied = pd.DataFrame({"applied_load": [tan_load]})
+
+                # ----- Bars: bending & surface limits -----
+                bars = (alt.Chart(df_limits).mark_bar(opacity=0.7).encode(x=alt.X("type:N", title=""),y=alt.Y("limit:Q", title="Tangential load (N)"),
+                        color=alt.Color("type:N", title="Limit type"),tooltip=["type:N", "limit:Q"]))
+
+                # ----- Horizontal line: applied tangential load -----
+                rule = (alt.Chart(df_applied).mark_rule(color="red", strokeWidth=3).encode(y="applied_load:Q"))
+
+                # Optional: label on the line
+                rule_text = (alt.Chart(df_applied).mark_text(align="left",dx=5,dy=-5,color="red").encode(y="applied_load:Q",text=alt.Text("applied_load:Q", format=".1f")))
+
+                chart = (bars + rule + rule_text).properties(width=400,height=300,title="Tangential Load Limits (N) vs Applied Load (N)")
+
+                st.altair_chart(chart, use_container_width=False)
+
         
         with st.expander("Show Formulae"):
                 st.latex(
