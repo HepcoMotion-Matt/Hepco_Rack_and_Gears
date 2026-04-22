@@ -1,16 +1,41 @@
 import streamlit as st
 import numpy as np
 
-def calculate_spur_pin(num_teeth,module_n,pressure_angle_n,helix_angle):
+def inv(angle, deg=True):
+    if deg==True:
+        inv = np.tan(np.radians(angle))-np.radians(angle)
+    else:
+        inv = np.tan(angle)-angle
+    return inv
+
+def inv_inverse(v, return_degrees=True):
+    # seed
+    a = (3*v)**(1/3) if v < 0.02 else np.radians(20.0)
+    for _ in range(20):
+        f  = np.tan(a) - a - v
+        df = (1/np.cos(a)**2) - 1.0  # tan^2(a)
+        a -= f/df
+        if abs(f) < 1e-15:
+            break
+    return np.degrees(a) if return_degrees else a
+
+def common_normal(num_teeth,pressure_angle_n,module_n):
+    inv_alpha = inv(pressure_angle_n)
+    spanned_tooth = np.round(num_teeth*pressure_angle_n/180+0.5,0)
+    common_normal_length = module_n*np.cos(np.radians(pressure_angle_n))*((spanned_tooth-0.5)*np.pi+num_teeth*inv_alpha)
+    return spanned_tooth, common_normal_length
+
+def calculate_spur_pin(num_teeth,module_n,pressure_angle_n,helix_angle,profile_shift):
     pitch_dia_s = (num_teeth * module_n)/np.cos(np.radians(helix_angle))
     pressure_angle_r = np.degrees(np.atan(np.tan(np.radians(pressure_angle_n))/np.cos(np.radians(helix_angle))))
     base_dia_s = pitch_dia_s * np.cos(np.radians(pressure_angle_r))
     outer_dia_s = pitch_dia_s + 2 * module_n
     whole_depth_s = 2.25 * module_n
     root_dia_s = outer_dia_s - (2 * whole_depth_s)
-    return pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s
+    v_dia = base_dia_s + 2 * profile_shift * module_n
+    return pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s, v_dia
 
-def calculate_helical_pin(module_n,helix_angle,pressure_angle_n,num_teeth):
+def calculate_helical_pin(module_n,helix_angle,pressure_angle_n,num_teeth,profile_shift):
     module_r = module_n / np.cos(np.radians(helix_angle))
     pressure_angle_r = np.degrees(np.atan(np.tan(np.radians(pressure_angle_n))/np.cos(np.radians(helix_angle))))
     pitch_dia_h = (num_teeth * module_r)/np.cos(np.radians(pressure_angle_r))
@@ -18,9 +43,10 @@ def calculate_helical_pin(module_n,helix_angle,pressure_angle_n,num_teeth):
     outer_dia_h = pitch_dia_h + 2 * module_r
     whole_depth_h = 2.25 * module_r
     root_dia_h = outer_dia_h - (2 * whole_depth_h)
-    return module_r, pressure_angle_r, pitch_dia_h, base_dia_h, outer_dia_h, whole_depth_h, root_dia_h
+    v_dia = base_dia_h + 2 * profile_shift * module_n
+    return module_r, pressure_angle_r, pitch_dia_h, base_dia_h, outer_dia_h, whole_depth_h, root_dia_h, v_dia
 
-def contact_ratio(module_n,pressure_angle_n,rack_addendum,contact_width,num_teeth,a1=None):
+def contact_ratio(module_n,pressure_angle_n,rack_addendum,contact_width,num_teeth,profile_shift,a1=None):
     def epsilon_a(outer_dia_s,base_dia_s,pitch_dia_s):
         epsilon_a = (np.sqrt((outer_dia_s/2)**2-(base_dia_s/2)**2)+(rack_addendum/np.sin(np.radians(pressure_angle_n)))-(pitch_dia_s/2)*np.sin(np.radians(pressure_angle_n)))/(np.pi*module_n*np.cos(np.radians(pressure_angle_n)))
         return epsilon_a
@@ -36,21 +62,24 @@ def contact_ratio(module_n,pressure_angle_n,rack_addendum,contact_width,num_teet
 
     if is_helical:
         helix_angle = float(a1)
-        module_r, pressure_angle_r, pitch_dia_h, base_dia_h, outer_dia_h, whole_depth_h, root_dia_h = calculate_helical_pin(module_n,
+        module_r, pressure_angle_r, pitch_dia_h, base_dia_h, outer_dia_h, whole_depth_h, root_dia_h, v_dia = calculate_helical_pin(module_n,
                                                                                                                             a1,
                                                                                                                             pressure_angle_n,
-                                                                                                                            num_teeth)
-        pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s = calculate_spur_pin(num_teeth,
+                                                                                                                            num_teeth,
+                                                                                                                            profile_shift)
+        pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s, v_dia = calculate_spur_pin(num_teeth,
                                                                                              module_n,
                                                                                              pressure_angle_n,
-                                                                                             a1)
+                                                                                             a1,
+                                                                                             profile_shift)
         epsilon_a = epsilon_a(outer_dia_s,base_dia_s,pitch_dia_s)
         epsilon_b = epsilon_b(a1)        
     else:
-        pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s = calculate_spur_pin(num_teeth,
+        pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s, v_dia = calculate_spur_pin(num_teeth,
                                                                                              module_n,
                                                                                              pressure_angle_n,
-                                                                                             0)
+                                                                                             0,
+                                                                                             profile_shift)
         epsilon_a = epsilon_a(outer_dia_s,base_dia_s,pitch_dia_s)
         epsilon_b = 0
     epsilon_gamma = epsilon_a + epsilon_b
@@ -79,7 +108,7 @@ def bending_stress(epsilon_a,sigma_F,module_n,contact_width,tooth_profile_factor
     return tan_load_limit_bending,load_dist_factor,helix_angle_factor_b,dim_factor_root_stress,bending_stress_val
 
 def surface_stress(contact_width,module_n,pressure_angle_n,pressure_angle_r,lubricant,pc_speed,rack_youngs,allow_hertz,\
-epsilon_a,epsilon_b,gear_type,dyn_load_factor,overload_factor,safety_factor_pitting,hard_rack,tan_load,pinion_treat,pinion_finish,pinion_youngs,num_teeth,b1):
+epsilon_a,epsilon_b,gear_type,dyn_load_factor,overload_factor,safety_factor_pitting,hard_rack,tan_load,pinion_treat,pinion_finish,pinion_youngs,num_teeth,b1,profile_shift):
     
     if gear_type == "Helical":
         helix_angle = float(b1)
@@ -99,10 +128,11 @@ epsilon_a,epsilon_b,gear_type,dyn_load_factor,overload_factor,safety_factor_pitt
     if lubricant == "SKF LAGD125":
         kin_vis = 90.0
 
-    pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s = calculate_spur_pin(num_teeth,
+    pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s, v_dia = calculate_spur_pin(num_teeth,
                                                                                          module_n,
                                                                                          pressure_angle_n,
-                                                                                         b1)
+                                                                                         b1,
+                                                                                         profile_shift)
 
     if b1 == "Annealed/Normalised":
         lub_factor = 1e-8*(kin_vis**3)-7e-6*(kin_vis**2)+0.0021*(kin_vis)+0.8585
@@ -137,4 +167,74 @@ epsilon_a,epsilon_b,gear_type,dyn_load_factor,overload_factor,safety_factor_pitt
     (life_factor_s*lub_factor*surface_roughness_factor*sliding_speed_factor*hardness_ratio_factor*dimension_factor))*np.sqrt(tooth_flank_load_distribution_factor*dyn_load_factor*overload_factor)*safety_factor_pitting
     
     return tan_load_limit_surface,eff_tooth_width,base_helix_angle,zone_factor,material_factor,contact_ratio_factor,helix_angle_factor_s,life_factor_s,lub_factor,avg_roughness,surface_roughness_factor,sliding_speed_factor,hardness_ratio_factor,dimension_factor,tooth_flank_load_distribution_factor,surface_stress_val
-    
+
+def tooth_spacing(module_n,gear_type,pressure_angle_n,profile_shift,b1):
+
+    if gear_type == "Helical":
+        helix_angle = float(b1)
+    else:
+        0 == b1
+
+    #Base Pitches
+    base_pitch_norm = module_n * np.pi
+    base_pitch_trans = (module_n * np.pi)/np.cos(np.radians(b1))
+    base_pitch_axial = (module_n * np.pi)/np.sin(np.radians(b1))
+
+    #Circular Tooth Thickness
+    tooth_thickness = module_n * (np.pi/2 + 2 * profile_shift * np.tan(np.radians(pressure_angle_n)))
+    space_thickness = module_n * (np.pi/2 - 2 * profile_shift * np.tan(np.radians(pressure_angle_n)))
+
+    return base_pitch_norm, base_pitch_trans, base_pitch_axial, tooth_thickness, space_thickness
+
+def over_pins(pressure_angle_n,num_teeth,module_n,profile_shift,gear_type,a1,a2):
+    inv_alpha_n = inv(pressure_angle_n)
+    match gear_type:
+        case "Spur":
+            #Ideal Pin Dia Calcs
+            a1=None
+            a2=None
+            half_tooth = (np.pi/(2*num_teeth)-inv_alpha_n)-(2*profile_shift*np.tan(np.radians(pressure_angle_n))/num_teeth)
+            pressure_angle_pin_tan = np.degrees(np.arccos((num_teeth*module_n*np.cos(np.radians(pressure_angle_n)))/((num_teeth+2*profile_shift)*module_n)))
+            pressure_angle_pin_cen_ideal = np.tan(np.radians(pressure_angle_pin_tan))+half_tooth
+            inv_phi_ideal = inv(pressure_angle_pin_cen_ideal,deg=False)
+            ideal_pin = num_teeth*module_n*np.cos(np.radians(pressure_angle_n))*(inv_phi_ideal+half_tooth)
+
+            #Actual Pin Dia Calcs
+            actual_pin = np.round(ideal_pin,decimals=1)
+            inv_phi_actual = actual_pin/(module_n*num_teeth*np.cos(np.radians(pressure_angle_n)))-(np.pi/(2*num_teeth))+inv_alpha_n+((2*profile_shift*np.tan(np.radians(pressure_angle_n)))/num_teeth)
+            pressure_angle_pin_cen_actual = inv_inverse(inv_phi_actual,return_degrees=True)
+            if num_teeth % 2 == 0:
+                #Number of teeth are even
+                over_pins_dim = (num_teeth*module_n*np.cos(np.radians(pressure_angle_n)))/np.cos(np.radians(pressure_angle_pin_cen_actual))+actual_pin
+            else:
+                #Number of teeth are odd
+                over_pins_dim = (num_teeth*module_n*np.cos(np.radians(pressure_angle_n)))/np.cos(np.radians(pressure_angle_pin_cen_actual))*np.cos(90/num_teeth)+actual_pin
+        case "Helical":
+            #Ideal Pin Dia Calcs
+            helix_angle = float(a1)
+            pressure_angle_r = float(a2)
+            inv_alpha_r = inv(a2)
+            equiv_spur = num_teeth/np.cos(np.radians(a1))**3
+            half_tooth = (np.pi/(2*equiv_spur)-inv_alpha_n)-(2*profile_shift*np.tan(np.radians(pressure_angle_n))/equiv_spur)
+            pressure_angle_pin_tan = np.degrees(np.arccos((equiv_spur*np.cos(np.radians(pressure_angle_n))/(equiv_spur+2*profile_shift))))
+            pressure_angle_pin_cen_ideal = np.tan(np.radians(pressure_angle_pin_tan))+half_tooth
+            inv_phi_ideal = inv(pressure_angle_pin_cen_ideal,deg=False)
+            ideal_pin = equiv_spur*module_n*np.cos(np.radians(pressure_angle_n))*(inv_phi_ideal+half_tooth)
+
+            #Actual Pin Dia Calcs
+            actual_pin = np.round(ideal_pin,decimals=1)
+            actual_pin = 2
+            inv_phi_actual = actual_pin/(module_n*num_teeth*np.cos(np.radians(pressure_angle_n)))-(np.pi/(2*num_teeth))+inv_alpha_r+((2*profile_shift*np.tan(np.radians(pressure_angle_n)))/num_teeth)
+            pressure_angle_pin_cen_actual = inv_inverse(inv_phi_actual,return_degrees=True)
+            if num_teeth % 2 == 0:
+                #Number of teeth are even
+                over_pins_dim = (num_teeth*module_n*np.cos(np.radians(a2)))/(np.cos(np.radians(a1))*np.cos(np.radians(pressure_angle_pin_cen_actual)))+actual_pin
+            else:
+                #Number of teeth are odd
+                over_pins_dim = (num_teeth*np.cos(np.radians(a2)))/(np.cos(np.radians(a2))*np.cos(np.radians(pressure_angle_pin_cen_actual)))*np.cos(90/num_teeth)+actual_pin
+            st.markdown(pressure_angle_n)
+            st.markdown(pressure_angle_r)
+            st.markdown(inv_phi_actual)
+            st.markdown("$\\phi$ =", pressure_angle_pin_cen_actual)
+                
+    return over_pins_dim, actual_pin
