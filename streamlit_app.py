@@ -892,12 +892,12 @@ match system:
                 sb.write("Relatively Shallow")
                 carb_depth_pin = "Relatively Shallow"
                 core_hardness_pin =sb.selectbox("Core Hardness (HB)",core_hardness_arr_pin,index=None,key="core_hardness_pin")
+                surface_hardness_pin = sb.selectbox("Surface Hardness (Quenched) (HV)",carb_hardness_pin,index=None,key="surface_hardness_pin")
                 
                 if core_hardness_pin is None:
                     sigma_F_pin = None
                     sigma_H_pin = None
-                elif core_hardness_pin is not None:
-                    surface_hardness_pin = sb.selectbox("Surface Hardness (Quenched) (HV)",carb_hardness_pin,index=None,key="surface_hardness_pin")
+                elif core_hardness_pin and surface_hardness_pin is not None:
                     idx_F_pin = np.where(core_hardness_pin == core_hardness_arr_pin)[0][0]
                     idx_H_pin = np.where(carb_hardness_pin == surface_hardness_pin)[0][0]
                     sigma_F_pin = sigma_F_lim_arr_pin[idx_F_pin]
@@ -1224,7 +1224,7 @@ if sb.button("Calculate"):
         r2.metric("Overlap Contact Ratio $\\epsilon_{\\beta}$", f"{epsilon_b:.2f}")
         st.metric("Total Contact Ratio $\\epsilon_{\\gamma}$", f"{epsilon_gamma:.2f}")
         st.markdown("Notes:")
-        st.markdown("An interger Overlap Ratio ($\\epsilon_{\\beta}$) is advantagous as it generates a constant load line length. This assumes there are no manufacturing defects or deflections in the system.")
+        st.markdown("An integer Overlap Ratio ($\\epsilon_{\\beta}$) is advantagous as it generates a constant load line length. This assumes there are no manufacturing defects or deflections in the system.")
 
     with st.expander("Contact Length",expanded=False):
         r1, r2, r3, r4 = st.columns(4)
