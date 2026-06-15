@@ -1,5 +1,6 @@
 import streamlit as st
 import numpy as np
+import pandas as pd
 
 def inv(angle, deg=True):
     if deg==True:
@@ -94,7 +95,7 @@ def contact_length(module_n,pressure_angle_n,epsilon_gamma):
     contact_length_1p_percent = ((2/epsilon_gamma)- 1)*100
     return contact_len, contact_length_2p, contact_length_1p, contact_length_2p_percent, contact_length_1p_percent
 
-def bending_stress(epsilon_a,sigma_F,module_n,contact_width,tooth_profile_factor,life_factor_b,dyn_load_factor,overload_factor,safety_factor,tan_load,helix_angle):
+def bending_stress(epsilon_a,sigma_F,module_n,contact_width,tooth_profile_factor,life_factor_b,overload_factor,safety_factor,tan_load,helix_angle,rack_class,pc_speed):
     load_dist_factor = 1/epsilon_a
     if helix_angle > 30:
         helix_angle_factor_b = 0.75
@@ -102,10 +103,48 @@ def bending_stress(epsilon_a,sigma_F,module_n,contact_width,tooth_profile_factor
         helix_angle_factor_b = 1-(helix_angle/120)
     dim_factor_root_stress = 1
 
+    kv_data = {
+            "class": [1, 2, 3, 4, 5, 6],
+            "under 1": ["a", 1.0, 1.0, 1.0, 1.1, 1.2],
+            "1 to less than 3": [1.0,1.1,1.2,1.3,1.4,1.5],
+            "3 to less than 5": [1.05,1.15,1.3,1.4,1.5,"b"],
+            "5 to less than 8": [1.1,1.2,1.4,1.5,"b","b"],
+            "8 to less than 12": [1.2,1.3,1.5,"b","b","b"],
+            "12 to less than 15": [1.3,1.5,"b","b","b","b"],
+            "18 to less than 25": [1.5,"b","b","b","b","b"]
+        }
+    df_from_data = pd.DataFrame(kv_data)
+
+    match pc_speed:
+        case s if 1 > s:
+            tan_speed = "under 1"
+        case s if 1 <= s < 3:
+            tan_speed = "1 to less than 3"
+        case s if 3 <= s < 5:
+            tan_speed = "3 to less than 5"
+        case s if 5 <= s < 8:
+            tan_speed = "5 to less than 8"
+        case s if 8 <= s < 12:
+            tan_speed = "8 to less than 12"
+        case s if 12 <= s < 18:
+            tan_speed = "12 to less than 18"
+        case s if 18 <= s < 25:
+            tan_speed = "18 to less than 25"
+
+    dyn_load_factor = df_from_data.loc[rack_class - 1,tan_speed]
+
+    if dyn_load_factor == "a":
+        st.error("Rack class too high. Please select a lower rack class")
+        st.stop()
+    elif dyn_load_factor == "b":
+        st.error("Rack class too low. Please select a higher rack class")
+        st.stop()
+
+
     tan_load_limit_bending = sigma_F*((module_n*contact_width)/(tooth_profile_factor*load_dist_factor*helix_angle_factor_b))\
         *((life_factor_b*dim_factor_root_stress)/(dyn_load_factor*overload_factor))*(1/safety_factor)
     bending_stress_val = tan_load*((tooth_profile_factor*load_dist_factor*helix_angle_factor_b)/(module_n*contact_width)*((dyn_load_factor*overload_factor)/(life_factor_b*dim_factor_root_stress))*safety_factor)
-    return tan_load_limit_bending,load_dist_factor,helix_angle_factor_b,dim_factor_root_stress,bending_stress_val
+    return tan_load_limit_bending,load_dist_factor,helix_angle_factor_b,dim_factor_root_stress,dyn_load_factor,bending_stress_val
 
 def surface_stress(contact_width,module_n,pressure_angle_n,pressure_angle_r,lubricant,pc_speed,rack_youngs,allow_hertz,\
 epsilon_a,epsilon_b,gear_type,dyn_load_factor,overload_factor,safety_factor_pitting,hard_rack,tan_load,pinion_treat,pinion_finish,pinion_youngs,num_teeth,b1,profile_shift):

@@ -87,10 +87,11 @@ sb.header("Configure System")
 sb.subheader("Gear System")
 system = sb.selectbox("System", ["Rack and Pinion","External Wheel and Pinion","Internal Wheel and Pinion"],index=None)
 gear_type = sb.selectbox("Gear Type", ["Spur", "Helical"],index=None)
-module_n = sb.number_input("Normal Module (mm) $m_n$",max_value=25.0)
+module_n = sb.number_input("Normal Module (mm) $m_n$",max_value=25.0,value=3.0)
 pressure_angle_n = sb.slider("Normal Pressure Angle (°) $\\alpha_n$", min_value=15.0, max_value=25.0, value=20.0,step=2.5,help="Hepco use a 20° pressure angle as standard, but this can be modified to between 15° and 25°")
 lubricant = sb.selectbox("System Lubricant",["SKF LAGD125"],index=None)
-pc_speed = sb.number_input("Speed at Pitch Circle (m/s) $v$", min_value=0.0, max_value=1000.0, value=50.0)
+pc_speed = sb.number_input("Speed at Pitch Circle (m/s) $v$", min_value=0.0, max_value=1000.0, value=5.0)
+rack_class = sb.selectbox("Desired Rack Class (JIS B 1702)", [1,2,3,4,5,6])
 
 #Initialise values
 sigma_F_rack = 0
@@ -1027,7 +1028,7 @@ tan_load = sb.number_input("Applied Tangential Load (N) $F_t$",min_value=0.0,max
 sb.subheader("Bending Stress")
 tooth_profile_factor = sb.slider("Tooth Profile Factor $Y_F$",min_value=1.8,max_value=3.8,value=2.05,help="See Fig. 17-1 on Pg T-152 of SDP/SI Metric Handbook")
 life_factor_b = sb.slider("Life Factor $K_L$",min_value=1.0,max_value=1.5,value=1.0,help="See Table 17-2 on Pg T-154 of SDP/SI Metric Handbook")
-dyn_load_factor = sb.slider("Dynamic Load Factor $K_V$",min_value=1.0,max_value=1.5,value=1.5,help="See Table 17-3 on Pg T-154 of SDP/SI Metric Handbook")
+#dyn_load_factor = sb.slider("Dynamic Load Factor $K_V$",min_value=1.0,max_value=1.5,value=1.5,help="See Table 17-3 on Pg T-154 of SDP/SI Metric Handbook")
 overload_factor = sb.slider("Overload Factor $K_O$",min_value=1.0,max_value=2.25,value=1.0,help="See Table 17-4 on Pg T-155 of SDP/SI Metric Handbook")
 safety_factor = sb.slider("Safety Factor $S_f$",min_value=1.0,max_value=5.0,value=1.2,step=0.1,help="Usually this factor is set to at least 1.2")
 sb.subheader("Surface Stress")
@@ -1079,11 +1080,12 @@ if sb.button("Calculate"):
                                                 contact_width,
                                                 tooth_profile_factor,
                                                 life_factor_b,
-                                                dyn_load_factor,
                                                 overload_factor,
                                                 safety_factor,
                                                 tan_load,
-                                                helix_angle)
+                                                helix_angle,
+                                                rack_class,
+                                                pc_speed)
         tan_load_limit_surface,eff_tooth_width,base_helix_angle,zone_factor,material_factor,contact_ratio_factor,helix_angle_factor_s,life_factor_s,lub_factor,avg_roughness,surface_roughness_factor,sliding_speed_factor,hardness_ratio_factor,dimension_factor,tooth_flank_load_distribution_factor,surface_stress_val = surface_stress(contact_width,
                                                 module_n,
                                                 pressure_angle_n,
@@ -1129,17 +1131,18 @@ if sb.button("Calculate"):
                                                                                                                             float(pressure_angle_n),
                                                                                                                             int(num_teeth),
                                                                                                                             float(profile_shift))
-        tan_load_limit_bending,load_dist_factor,helix_angle_factor_b,dim_factor_root_stress,bending_stress_val = bending_stress(epsilon_a,
+        tan_load_limit_bending,load_dist_factor,helix_angle_factor_b,dim_factor_root_stress,dyn_load_factor,bending_stress_val = bending_stress(epsilon_a,
                                                 sigma_F,
                                                 module_n,
                                                 contact_width,
                                                 tooth_profile_factor,
                                                 life_factor_b,
-                                                dyn_load_factor,
                                                 overload_factor,
                                                 safety_factor,
                                                 tan_load,
-                                                helix_angle)
+                                                helix_angle,
+                                                rack_class,
+                                                pc_speed)
         tan_load_limit_surface,eff_tooth_width,base_helix_angle,zone_factor,material_factor,contact_ratio_factor,helix_angle_factor_s,life_factor_s,lub_factor,avg_roughness,surface_roughness_factor,sliding_speed_factor,hardness_ratio_factor,dimension_factor,tooth_flank_load_distribution_factor,surface_stress_val = surface_stress(contact_width,
                                                 module_n,
                                                 pressure_angle_n,
@@ -1300,6 +1303,7 @@ if sb.button("Calculate"):
             s1, s2, s3, s4 = st.columns(4)
             with s1:
                 st.metric("Load Distribution Factor $Y_{\\epsilon}$",f"{load_dist_factor:.2f}")
+                st.metric("Dynamic Load Factor $K_V$",f"{dyn_load_factor:.2f}")
             with s2:
                 st.metric("Helix Angle Factor $Y_{\\beta}$",f"{helix_angle_factor_b:.2f}")
             with s3:
