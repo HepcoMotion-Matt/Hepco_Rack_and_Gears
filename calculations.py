@@ -110,10 +110,10 @@ def bending_stress(epsilon_a,sigma_F,module_n,contact_width,tooth_profile_factor
             "3 to less than 5": [1.05,1.15,1.3,1.4,1.5,"b"],
             "5 to less than 8": [1.1,1.2,1.4,1.5,"b","b"],
             "8 to less than 12": [1.2,1.3,1.5,"b","b","b"],
-            "12 to less than 15": [1.3,1.5,"b","b","b","b"],
+            "12 to less than 18": [1.3,1.5,"b","b","b","b"],
             "18 to less than 25": [1.5,"b","b","b","b","b"]
         }
-    df_from_data = pd.DataFrame(kv_data)
+    df_from_data = pd.DataFrame(kv_data).set_index("class")
 
     match pc_speed:
         case s if 1 > s:
@@ -131,7 +131,7 @@ def bending_stress(epsilon_a,sigma_F,module_n,contact_width,tooth_profile_factor
         case s if 18 <= s < 25:
             tan_speed = "18 to less than 25"
 
-    dyn_load_factor = df_from_data.loc[rack_class - 1,tan_speed]
+    dyn_load_factor = df_from_data.loc[rack_class,tan_speed]
 
     if dyn_load_factor == "a":
         st.error("Rack class too high. Please select a lower rack class")
@@ -212,18 +212,21 @@ def tooth_spacing(module_n,gear_type,pressure_angle_n,profile_shift,b1):
     if gear_type == "Helical":
         helix_angle = float(b1)
     else:
-        0 == b1
+        b1 = 0
 
-    #Base Pitches
-    base_pitch_norm = module_n * np.pi
-    base_pitch_trans = (module_n * np.pi)/np.cos(np.radians(b1))
-    base_pitch_axial = (module_n * np.pi)/np.sin(np.radians(b1))
+    #Circular Pitches
+    circ_pitch_norm = module_n * np.pi
+    circ_pitch_trans = (module_n * np.pi)/np.cos(np.radians(b1))
+    if b1 == 0:
+        circ_pitch_axial = None
+    else:
+        circ_pitch_axial = (module_n * np.pi)/np.sin(np.radians(b1))
 
     #Circular Tooth Thickness
     tooth_thickness = module_n * (np.pi/2 + 2 * profile_shift * np.tan(np.radians(pressure_angle_n)))
     space_thickness = module_n * (np.pi/2 - 2 * profile_shift * np.tan(np.radians(pressure_angle_n)))
 
-    return base_pitch_norm, base_pitch_trans, base_pitch_axial, tooth_thickness, space_thickness
+    return circ_pitch_norm, circ_pitch_trans, circ_pitch_axial, tooth_thickness, space_thickness
 
 def over_pins(pressure_angle_n,num_teeth,module_n,profile_shift,gear_type,a1,a2):
     inv_alpha_n = inv(pressure_angle_n)

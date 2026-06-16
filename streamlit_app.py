@@ -121,7 +121,7 @@ match system:
         contact_width = sb.number_input("Normal Contact Width (mm) $b$")
 
         #Rack Material Option Setup
-        rack_material = sb.selectbox("Rack Material Category",["Structural Alloy Steel","Structural Carbon Steel","Nitriding Steel","Cast Steel","Ductile Cast Iron","Gray Cast Iron"],index=None)
+        rack_material = sb.selectbox("Rack Material Category",["Structural Alloy Steel","Structural Carbon Steel","Nitriding Steel","Cast Steel"],index=None)
         match rack_material:
             case "Structural Alloy Steel":
                 rack_treat = sb.selectbox("Rack Tooth Heat Treatment",["Without Case Hardening","Induction Hardened","Nitrided","Soft Nitrided","Carburised"],index=None)
@@ -147,10 +147,6 @@ match system:
                 sb.markdown("Rack Tooth Heat Treatment")
                 sb.write("Nitrided")
                 rack_treat = "Nitrided"
-            case "Ductile Cast Iron"|"Gray Cast Iron":
-                sb.markdown("Rack Tooth Heat Treatment")
-                sb.write("Annealed/Normalised")
-                rack_treat = "Annealed/Normalised"
             case _:
                 rack_treat = None
         #Induction Hardened Root Option Setup
@@ -202,12 +198,6 @@ match system:
             case "Cast Steel":
                 rack_material_specific = sb.selectbox("Rack Material Grade",["SC37","SC42","SC46","SC49","SCC3"],index=None)
                 rack_youngs = sb.number_input("Young's Modulus of Rack (GPa) $E_1$",min_value=90.0,max_value=250.0,value=201.0363,help=ym_help)
-            case "Ductile Cast Iron":
-                rack_material_specific = None
-                rack_youngs = sb.number_input("Young's Modulus of Rack (GPa) $E_1$",min_value=90.0,max_value=250.0,value=172.5970,help=ym_help)
-            case "Gray Cast Iron":
-                rack_material_specific = None
-                rack_youngs = sb.number_input("Young's Modulus of Rack (GPa) $E_1$",min_value=90.0,max_value=250.0,value=117.6780,help=ym_help)
     #Without Case Hardening Racks
         #Help messages
         bshelp = "Please select the bending stress limit which best suits the condition of the material selected above." \
@@ -581,7 +571,7 @@ match system:
                 sb.subheader("Spur Pinion")
         num_teeth = sb.slider("Number of Teeth $z_1$", min_value=5,max_value=100,value=20)
         profile_shift = sb.slider("Profile Shift $x$",min_value=-0.3,max_value=0.5,value=0.0,step=0.05,help="Hepco typically do not use profile shift.")
-        pinion_material = sb.selectbox("Pinion Material Category",["Structural Alloy Steel","Structural Carbon Steel","Nitriding Steel","Cast Steel","Ductile Cast Iron","Gray Cast Iron"],index=None)
+        pinion_material = sb.selectbox("Pinion Material Category",["Structural Alloy Steel","Structural Carbon Steel","Nitriding Steel","Cast Steel"],index=None)
 
         #Pinion Material Option Setup
         if pinion_material == "Structural Alloy Steel":
@@ -645,12 +635,6 @@ match system:
         elif pinion_material == "Cast Steel":
             pinion_material_specific = sb.selectbox("Pinion Material Grade",["SC37","SC42","SC46","SC49","SCC3"],index=None)
             pinion_youngs = sb.number_input("Young's Modulus of Pinion (GPa) $E_1$",min_value=90.0,max_value=250.0,value=201.0363,help=ym_help)
-        elif pinion_material == "Ductile Cast Iron":
-            pinion_material_specific = None
-            pinion_youngs = sb.number_input("Young's Modulus of Pinion (GPa) $E_1$",min_value=90.0,max_value=250.0,value=172.5970,help=ym_help)
-        elif pinion_material == "Gray Cast Iron":
-            pinion_material_specific = None
-            pinion_youngs = sb.number_input("Young's Modulus of Pinion (GPa) $E_1$",min_value=90.0,max_value=250.0,value=117.6780,help=ym_help)
 
         #Without Case Hardening pinions
         #Help messages
@@ -1028,7 +1012,6 @@ tan_load = sb.number_input("Applied Tangential Load (N) $F_t$",min_value=0.0,max
 sb.subheader("Bending Stress")
 tooth_profile_factor = sb.slider("Tooth Profile Factor $Y_F$",min_value=1.8,max_value=3.8,value=2.05,help="See Fig. 17-1 on Pg T-152 of SDP/SI Metric Handbook")
 life_factor_b = sb.slider("Life Factor $K_L$",min_value=1.0,max_value=1.5,value=1.0,help="See Table 17-2 on Pg T-154 of SDP/SI Metric Handbook")
-#dyn_load_factor = sb.slider("Dynamic Load Factor $K_V$",min_value=1.0,max_value=1.5,value=1.5,help="See Table 17-3 on Pg T-154 of SDP/SI Metric Handbook")
 overload_factor = sb.slider("Overload Factor $K_O$",min_value=1.0,max_value=2.25,value=1.0,help="See Table 17-4 on Pg T-155 of SDP/SI Metric Handbook")
 safety_factor = sb.slider("Safety Factor $S_f$",min_value=1.0,max_value=5.0,value=1.2,step=0.1,help="Usually this factor is set to at least 1.2")
 sb.subheader("Surface Stress")
@@ -1108,7 +1091,7 @@ if sb.button("Calculate"):
                                                 num_teeth,
                                                 helix_angle,
                                                 profile_shift)
-        base_pitch_norm, base_pitch_trans, base_pitch_axial,tooth_thickness, space_thickness = tooth_spacing(module_n,gear_type,pressure_angle_n,profile_shift,helix_angle)
+        circ_pitch_norm, circ_pitch_trans, circ_pitch_axial,tooth_thickness, space_thickness = tooth_spacing(module_n,gear_type,pressure_angle_n,profile_shift,helix_angle)
         over_pins_dim, actual_pin = over_pins(pressure_angle_n,num_teeth,module_n,profile_shift,gear_type,helix_angle,pressure_angle_r)
     else:
         pitch_dia_s, base_dia_s, outer_dia_s, whole_depth_s, root_dia_s, v_dia = calculate_spur_pin(float(num_teeth),
@@ -1165,7 +1148,7 @@ if sb.button("Calculate"):
                                                 num_teeth,
                                                 helix_angle,
                                                 profile_shift)
-        base_pitch_norm, base_pitch_trans, base_pitch_axial, tooth_thickness, space_thickness = tooth_spacing(module_n,gear_type,pressure_angle_n,profile_shift,helix_angle)
+        circ_pitch_norm, circ_pitch_trans, circ_pitch_axial, tooth_thickness, space_thickness = tooth_spacing(module_n,gear_type,pressure_angle_n,profile_shift,helix_angle)
         over_pins_dim, actual_pin = over_pins(pressure_angle_n,num_teeth,module_n,profile_shift,gear_type,helix_angle,pressure_angle_r)
 
     #Contact Ratio    
@@ -1193,7 +1176,7 @@ if sb.button("Calculate"):
             with st.expander("Tooth Spacing",expanded=False):
                 s1,s2,s3,s4 = st.columns(4)
                 with s1:
-                    st.metric("Base Pitch - Normal Plane (mm) $p_n$",f'{base_pitch_norm:.3f}')
+                    st.metric("Circular Pitch - Normal Plane (mm) $p_n$",f'{circ_pitch_norm:.3f}')
                 with s2:
                     st.metric("Normal Circular Tooth Thickness (mm) $s_n$", f'{tooth_thickness:.3f}')
                     st.metric("Normal Circular Tooth Space Thickness (mm) $e_n$", f'{space_thickness:.3f}')
@@ -1213,9 +1196,9 @@ if sb.button("Calculate"):
             with st.expander("Tooth Spacing",expanded=False):
                 s1,s2,s3,s4 = st.columns(4)
                 with s1:
-                    st.metric("Base Pitch - Normal Plane (mm) $p_n$",f'{base_pitch_norm:.3f}')
-                    st.metric("Base Pitch - Transverse Plane (mm) $p_t$",f'{base_pitch_trans:.3f}')
-                    st.metric("Base Pitch - Axial Plane (mm) $p_x$",f'{base_pitch_axial:.3f}')
+                    st.metric("Circular Pitch - Normal Plane (mm) $p_n$",f'{circ_pitch_norm:.3f}')
+                    st.metric("Circular Pitch - Transverse Plane (mm) $p_t$",f'{circ_pitch_trans:.3f}')
+                    st.metric("Circular Pitch - Axial Plane (mm) $p_x$",f'{circ_pitch_axial:.3f}')
                 with s2:
                     st.metric("Normal Circular Tooth Thickness (mm) $s_n$", f'{tooth_thickness:.3f}')
                     st.metric("Normal Circular Tooth Space Thickness (mm) $e_n$", f'{space_thickness:.3f}')
@@ -1279,7 +1262,7 @@ if sb.button("Calculate"):
 
                 chart = (bars + rule + rule_text).properties(width=400,height=300,title="Tangential Load Limits (N) vs Applied Load (N)")
 
-                st.altair_chart(chart, use_container_width=False)
+                st.altair_chart(chart, width='content')
 
         
         with st.expander("Show Formulae"):
