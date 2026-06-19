@@ -10,8 +10,11 @@ def inv(angle, deg=True):
     return inv
 
 def inv_inverse(v, return_degrees=True):
-    # seed
-    a = (3*v)**(1/3) if v < 0.02 else np.radians(20.0)
+    if v < 0.02:
+        a = np.cbrt(3*v) 
+    else:
+        a = np.radians(20.0)
+
     for _ in range(20):
         f  = np.tan(a) - a - v
         df = (1/np.cos(a)**2) - 1.0  # tan^2(a)
@@ -93,7 +96,7 @@ def contact_length(module_n,pressure_angle_n,epsilon_gamma):
     contact_length_1p = base_pitch * (2 - epsilon_gamma)
     contact_length_2p_percent = 2 * (1 - (1/epsilon_gamma))*100
     contact_length_1p_percent = ((2/epsilon_gamma)- 1)*100
-    return contact_len, contact_length_2p, contact_length_1p, contact_length_2p_percent, contact_length_1p_percent
+    return contact_len, contact_length_2p, contact_length_1p, contact_length_2p_percent, contact_length_1p_percent, base_pitch
 
 def bending_stress(epsilon_a,sigma_F,module_n,contact_width,tooth_profile_factor,life_factor_b,overload_factor,safety_factor,tan_load,helix_angle,rack_class,pc_speed):
     load_dist_factor = 1/epsilon_a
@@ -204,7 +207,6 @@ epsilon_a,epsilon_b,gear_type,dyn_load_factor,overload_factor,safety_factor_pitt
 
     surface_stress_val = np.sqrt(tan_load/(pitch_dia_s*eff_tooth_width))*((zone_factor*material_factor*contact_ratio_factor*helix_angle_factor_s)/\
     (life_factor_s*lub_factor*surface_roughness_factor*sliding_speed_factor*hardness_ratio_factor*dimension_factor))*np.sqrt(tooth_flank_load_distribution_factor*dyn_load_factor*overload_factor)*safety_factor_pitting
-    
     return tan_load_limit_surface,eff_tooth_width,base_helix_angle,zone_factor,material_factor,contact_ratio_factor,helix_angle_factor_s,life_factor_s,lub_factor,avg_roughness,surface_roughness_factor,sliding_speed_factor,hardness_ratio_factor,dimension_factor,tooth_flank_load_distribution_factor,surface_stress_val
 
 def tooth_spacing(module_n,gear_type,pressure_angle_n,profile_shift,b1):
@@ -274,9 +276,185 @@ def over_pins(pressure_angle_n,num_teeth,module_n,profile_shift,gear_type,a1,a2)
             else:
                 #Number of teeth are odd
                 over_pins_dim = (num_teeth*np.cos(np.radians(a2)))/(np.cos(np.radians(a2))*np.cos(np.radians(pressure_angle_pin_cen_actual)))*np.cos(90/num_teeth)+actual_pin
-            st.markdown(pressure_angle_n)
-            st.markdown(pressure_angle_r)
-            st.markdown(inv_phi_actual)
-            st.markdown("$\\phi$ =", pressure_angle_pin_cen_actual)
                 
     return over_pins_dim, actual_pin
+
+def load_share_coords(base_pitch,contact_len,share_low):
+
+    share_high = 1 - share_low
+    x_common = contact_len - base_pitch
+
+    return [
+        [0, share_low],
+        [x_common, share_high],
+        [x_common, 1.0],
+        [base_pitch, 1.0],
+        [base_pitch, share_high],
+        [contact_len, share_low]
+    ]
+
+def coords_to_df(coords, label):
+    # Repeat first point at the end so the shape closes visually
+    closed = coords + [coords[0]]
+    return pd.DataFrame(closed, columns=["x", "load_share"]).assign(profile=label)
+
+def rack_pin_system_complete():
+    rack_pin_1 = st.session_state.get("rack_addendum")
+    rack_pin_2 = st.session_state.get("contact_width")
+    rack_pin_3 = st.session_state.get("rack_material")
+    rack_pin_4 = st.session_state.get("rack_youngs")    
+    rack_pin_5 = st.session_state.get("rack_finish")
+    rack_pin_6 = st.session_state.get("rack_material_specific") #sometimes required
+    rack_pin_7 = st.session_state.get("surface_hardness_rack") #sometimes required
+    rack_pin_8 = st.session_state.get("carb_depth") #sometimes required
+    rack_pin_9 = st.session_state.get("core_hardness_rack") #sometimes required
+    rack_pin_12 = st.session_state.get("tensile_lower_limit") #sometimes required
+    rack_pin_14 = st.session_state.get("rack_treat") #sometimes required             
+    rack_pin_15 = st.session_state.get("pre_treatment_rack") #sometimes required
+    rack_pin_16 = st.session_state.get("nitriding_time") #sometimes required
+    rack_pin_17 = st.session_state.get("rr_curvature") #sometimes required
+    rack_pin_18 = st.session_state.get("hard_root") #sometimes required
+    rack_pin_19 = st.session_state.get("nit_process_time_rack") #sometimes required
+
+    #Always required fields
+    if rack_pin_1 == 0.0:
+        return False
+    if rack_pin_2 == 0.0:
+        return False
+    if rack_pin_3 is None:
+        return False
+    if rack_pin_4 is None:
+        return False
+    if rack_pin_5 is None:
+        return False
+
+    #Conditionally required fields
+    if rack_pin_3 in ["Structural Carbon Steel","Structural Alloy Steel"]:
+        if rack_pin_14 is None:
+            return False
+    if rack_pin_3 == "Structural Alloy Steel" and rack_pin_14 == "Carburised":
+        if rack_pin_8 is None:
+            return False
+    if rack_pin_14 == "Carburised":
+        if rack_pin_9 is None:
+            return False
+    if rack_pin_14 == "Nitrided":
+        if rack_pin_9 is None:
+            return False
+        if rack_pin_19 is None:
+            return False
+    if rack_pin_3 == "Cast Steel":
+        if rack_pin_12 is None:
+            return False
+    if rack_pin_3 in ["Structural Carbon Steel", "Structural Alloy Steel"] and rack_pin_14 in ["Without Case Hardening","Induction Hardened"]:
+        if rack_pin_9 is None:
+            return False
+        if rack_pin_7 is None:
+            return False
+    if rack_pin_3 == "Structural Carbon Steel" and rack_pin_14 in ["Without Case Hardening","Induction Hardened"]:
+        if rack_pin_15 is None:
+            return False
+        if rack_pin_7 is None:
+            return False
+    if rack_pin_14 == "Soft Nitrided":
+        if rack_pin_16 is None:
+            return False
+        if rack_pin_17 is None:
+            return False
+        if rack_pin_9 is None:
+            return False
+    if rack_pin_14 == "Induction Hardened":
+        if rack_pin_18 is None:
+            return False
+    if rack_pin_3 in ["Structural Carbon Steel", "Cast Steel"]:
+        if rack_pin_6 is None:
+            return False
+    if rack_pin_3 == "Nitriding Steel":
+        if rack_pin_19 is None:
+            return False
+        if rack_pin_9 is None:
+            return False
+    if rack_pin_3 == "Structural Carbon Steel" and rack_pin_14 == "Without Case Hardening":
+        if rack_pin_15 is None:
+            return False    
+    return True
+
+def pin_complete():
+    pin_1 = st.session_state.get("pin_material")    
+    pin_2 = st.session_state.get("pin_youngs")    
+    pin_3 = st.session_state.get("pinion_finish")
+    pin_4 = st.session_state.get("pinion_material_specific") #sometimes required
+    pin_5 = st.session_state.get("surface_hardness_pin") #sometimes required
+    pin_6 = st.session_state.get("carb_depth_pin") #sometimes required
+    pin_7 = st.session_state.get("core_hardness_pin") #sometimes required
+    pin_8 = st.session_state.get("sigma_F_pin") #sometimes required
+    pin_9 = st.session_state.get("sigma_H_pin") #sometimes required
+    pin_10 = st.session_state.get("tensile_lower_lim_pin") #sometimes required
+    pin_12 = st.session_state.get("pin_treat") #sometimes required           
+    pin_13 = st.session_state.get("pre_treatment_pin") #sometimes required
+    pin_14 = st.session_state.get("nitriding_time_pin") #sometimes required
+    pin_15 = st.session_state.get("rr_curvature_pin") #sometimes required
+    pin_16 = st.session_state.get("hard_root_pin") #sometimes required
+    pin_17 = st.session_state.get("helix_angle") #sometimes required
+    pin_18 = st.session_state.get("gear_type") #never required
+    pin_19 = st.session_state.get("nit_process_time_pin") #sometimes required
+
+    #Always required fields
+    if pin_1 is None:
+        return False
+    if pin_2 is None:
+        return False
+    if pin_3 is None:
+        return False
+
+    #Conditionally required fields
+    if pin_1 in ["Structural Carbon Steel","Structural Alloy Steel"]:
+        if pin_12 is None:
+            return False
+        if pin_5 is None:
+            return False
+    if pin_1 == "Structural Alloy Steel" and pin_12 == "Carburised":
+        if pin_6 is None:
+            return False
+    if pin_12 == "Carburised":
+        if pin_7 is None:
+            return False
+    if pin_12 == "Nitrided":
+        if pin_8 is None:
+            return False
+        if pin_9 is None:
+            return False
+        if pin_19 is None:
+            return False
+    if pin_1 == "Cast Steel":
+        if pin_10 is None:
+            return False
+    if pin_12 in ["Without Case Hardening","Induction Hardened"]:
+        if pin_7 is None:
+            return False
+    if pin_1 == "Structural Carbon Steel" and pin_12 in ["Without Case Hardening","Induction Hardened"]:
+        if pin_13 is None:
+            return False
+    if pin_12 == "Soft Nitrided":
+        if pin_14 is None:
+            return False
+        if pin_15 is None:
+            return False
+    if pin_12 == "Induction Hardened":
+        if pin_16 is None:
+            return False
+    if pin_18 == "Helical":
+        if pin_17 is None:
+            return False
+    if pin_1 in ["Structural Carbon Steel", "Structural Alloy Steel", "Cast Steel"]:
+        if pin_4 is None:
+            return False
+    if pin_1 == "Nitriding Steel":
+        if pin_19 is None:
+            return False
+        if pin_7 is None:
+            return False
+    if pin_1 == "Structural Carbon Steel" and pin_12 == "Without Case Hardening":
+        if pin_13 is None:
+            return False
+    return True
